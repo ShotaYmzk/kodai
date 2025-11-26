@@ -53,6 +53,8 @@ export function ExperimentScreen({ userId, condition, onComplete }: ExperimentSc
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [skipCallback, setSkipCallback] = useState<(() => void) | null>(null);
   const timelineContainerRef = useRef<HTMLDivElement>(null);
+  const isExperimentCompletedRef = useRef(false); // 実験が正常に完了したかどうか
+  const isUnloadingRef = useRef(false); // ページがアンロード中かどうか
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -139,7 +141,7 @@ export function ExperimentScreen({ userId, condition, onComplete }: ExperimentSc
 
   const handleVasSubmit = async (score: number) => {
     try {
-      await fetch('/api/vas', {
+      const response = await fetch('/api/vas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -149,6 +151,14 @@ export function ExperimentScreen({ userId, condition, onComplete }: ExperimentSc
           vas_score: score
         })
       });
+      
+      const data = await response.json();
+      
+      // 最後のフェーズ（10-15）のVAS送信時は、既に完了扱いになっている
+      if (vasPhase === '10-15' && data.is_completed) {
+        console.log('[ExperimentScreen] Final VAS submitted, experiment completed');
+        isExperimentCompletedRef.current = true;
+      }
     } catch (e) {
       console.error('VAS Submit error', e);
     }
@@ -167,20 +177,67 @@ export function ExperimentScreen({ userId, condition, onComplete }: ExperimentSc
         setPhaseIndex(nextIndex);
         startPhase(PHASES[nextIndex]);
       } else {
-        // All done
+        // All done - 最後のフェーズ（10-15）のVAS送信時は既に完了扱いになっている
         finishExperiment();
       }
     }
   };
 
   const finishExperiment = async () => {
-    await fetch('/api/complete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: userId, condition })
-    });
+    // 正常に完了したことをマーク
+    isExperimentCompletedRef.current = true;
+    
+    // 最後のフェーズ（10-15）のVAS送信時に既に'completed'になっているはずなので、
+    // ここでは確認のみ行う（重複して完了扱いにしない）
+    try {
+      // 念のため、状態を確認してから完了を記録
+      const response = await fetch('/api/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, condition })
+      });
+      
+      if (!response.ok) {
+        console.error('[ExperimentScreen] Failed to mark experiment as complete');
+      }
+    } catch (e) {
+      console.error('[ExperimentScreen] Error completing experiment:', e);
+    }
+    
     onComplete();
   };
+
+  // ページのアンロードを監視（セッション切れを検知）
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // 実験中にページを閉じようとした場合
+      if (!isExperimentCompletedRef.current && phaseIndex >= 0) {
+        isUnloadingRef.current = true;
+        // 警告を表示（オプション）
+        e.preventDefault();
+        e.returnValue = '';
+        
+        // セッション切れを記録（オプション）
+        // ここでは完了扱いにしない
+        console.warn('[ExperimentScreen] Experiment interrupted by page unload');
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      // タブが非表示になった場合も検知
+      if (document.hidden && !isExperimentCompletedRef.current && phaseIndex >= 0) {
+        console.warn('[ExperimentScreen] Tab hidden during experiment');
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [phaseIndex]);
 
   // Format time
   const minutes = Math.floor(timeLeft / 60000).toString().padStart(2, '0');

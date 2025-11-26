@@ -50,8 +50,15 @@ export async function POST(request: Request) {
       // If not completed, update
       if (record.status !== 'completed') {
         const updateData: Record<string, unknown> = { [columnName]: vas_score };
+        
+        // 最後のフェーズ（10-15）のVAS送信時のみ完了扱いにする
+        // これにより、セッション切れで完了扱いになることを防ぐ
         if (phase === '10-15') {
           updateData['status'] = 'completed';
+          updateData['completed_at'] = new Date().toISOString(); // 完了時刻を記録
+        } else {
+          // 途中のフェーズでは'completed'にしない
+          updateData['last_activity_at'] = new Date().toISOString(); // 最終活動時刻を記録
         }
 
         const { error: updateError } = await supabase
@@ -61,7 +68,11 @@ export async function POST(request: Request) {
           
         if (updateError) throw updateError;
         
-        return NextResponse.json({ status: 'ok', message: 'Updated record' });
+        return NextResponse.json({ 
+          status: 'ok', 
+          message: 'Updated record',
+          is_completed: phase === '10-15'
+        });
       }
     }
 
