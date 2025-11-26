@@ -52,6 +52,7 @@ export function ExperimentScreen({ userId, condition, onComplete }: ExperimentSc
   const [previousVas, setPreviousVas] = useState<number | null>(null);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [skipCallback, setSkipCallback] = useState<(() => void) | null>(null);
+  const timelineContainerRef = useRef<HTMLDivElement>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -200,14 +201,14 @@ export function ExperimentScreen({ userId, condition, onComplete }: ExperimentSc
       </div>
 
       {/* Timeline or Loading */}
-      <div className="max-w-xl mx-auto bg-white min-h-screen shadow-sm">
-        <div className="text-center py-2 bg-[#e1f5fe] text-[#0277bd] text-sm font-medium">
+      <div className="max-w-xl mx-auto bg-white min-h-screen shadow-sm flex flex-col">
+        <div className="text-center py-2 bg-[#e1f5fe] text-[#0277bd] text-sm font-medium flex-shrink-0">
           {label}
         </div>
         
         {/* Debug Skip Button */}
         {isDebug && skipCallback && phaseIndex >= 0 && (
-          <div className="text-center py-2 bg-yellow-100">
+          <div className="text-center py-2 bg-yellow-100 flex-shrink-0">
             <Button 
               variant="danger" 
               onClick={skipCurrentPhase}
@@ -218,15 +219,17 @@ export function ExperimentScreen({ userId, condition, onComplete }: ExperimentSc
           </div>
         )}
         
-        {loadingPosts ? (
-          <div className="p-10 text-center text-gray-500">読み込み中...</div>
-        ) : posts.length === 0 ? (
-          <div className="p-10 text-center text-gray-500">
-            投稿が読み込まれていません。コンソールを確認してください。
-          </div>
-        ) : (
-          <Timeline posts={posts} />
-        )}
+        <div ref={timelineContainerRef} className="flex-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+          {loadingPosts ? (
+            <div className="p-10 text-center text-gray-500">読み込み中...</div>
+          ) : posts.length === 0 ? (
+            <div className="p-10 text-center text-gray-500">
+              投稿が読み込まれていません。コンソールを確認してください。
+            </div>
+          ) : (
+            <Timeline posts={posts} containerRef={timelineContainerRef} />
+          )}
+        </div>
       </div>
 
       {/* VAS Modal */}
