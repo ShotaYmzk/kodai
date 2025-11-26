@@ -36,13 +36,19 @@ export async function POST(request: Request) {
     // Find existing record
     const { data: existing, error: queryError } = await supabase
       .from('experiment_logs')
-      .select('id, status, vas_pre, vas_warmup, vas_phase1, vas_phase2, vas_phase3, last_activity_at')
+      .select('id, status')
       .eq('participant_name', user_id)
       .eq('filter_condition', condition)
       .order('id', { ascending: false })
       .limit(1);
 
-    if (queryError) throw queryError;
+    if (queryError) {
+      console.error('[VAS API] Query error:', queryError);
+      throw queryError;
+    }
+
+    console.log(`[VAS API] Request: user_id=${user_id}, condition=${condition}, phase=${phase}, vas_score=${vas_score}`);
+    console.log(`[VAS API] Existing records: ${existing?.length || 0}`);
 
     // preフェーズのVAS送信時は、新しい実験セッションの開始とみなす
     if (phase === 'pre') {
@@ -53,27 +59,41 @@ export async function POST(request: Request) {
         // 未完了のレコードがある場合は削除
         if (record.status !== 'completed') {
           console.log(`[VAS API] Deleting incomplete record (id: ${record.id}) to start new session`);
-          await supabase
+          const { error: deleteError } = await supabase
             .from('experiment_logs')
             .delete()
             .eq('id', record.id);
+          
+          if (deleteError) {
+            console.error('[VAS API] Delete error:', deleteError);
+            throw deleteError;
+          }
+          console.log(`[VAS API] Successfully deleted incomplete record`);
         }
       }
       
       // 新しいレコードを作成
-      const { error: insertError } = await supabase
+      const insertData: Record<string, unknown> = {
+        participant_name: user_id,
+        filter_condition: condition,
+        [columnName]: vas_score,
+        status: 'in_progress'
+      };
+      
+      console.log(`[VAS API] Creating new record:`, insertData);
+      
+      const { data: insertedData, error: insertError } = await supabase
         .from('experiment_logs')
-        .insert({
-          participant_name: user_id,
-          filter_condition: condition,
-          [columnName]: vas_score,
-          status: 'in_progress',
-          started_at: new Date().toISOString(),
-          last_activity_at: new Date().toISOString()
-        });
+        .insert(insertData)
+        .select();
         
-      if (insertError) throw insertError;
-      return NextResponse.json({ status: 'ok', message: 'Created new record' });
+      if (insertError) {
+        console.error('[VAS API] Insert error:', insertError);
+        throw insertError;
+      }
+      
+      console.log(`[VAS API] Successfully created new record:`, insertedData);
+      return NextResponse.json({ status: 'ok', message: 'Created new record', record_id: insertedData?.[0]?.id });
     }
 
     // pre以外のフェーズでは、既存の未完了レコードを更新
@@ -83,30 +103,38 @@ export async function POST(request: Request) {
       // 未完了のレコードがある場合は更新
       if (record.status !== 'completed') {
         const updateData: Record<string, unknown> = { 
-          [columnName]: vas_score,
-          last_activity_at: new Date().toISOString()
+          [columnName]: vas_score
         };
         
         // 最後のフェーズ（10-15）のVAS送信時のみ完了扱いにする
         if (phase === '10-15') {
           updateData['status'] = 'completed';
-          updateData['completed_at'] = new Date().toISOString();
         }
 
-        const { error: updateError } = await supabase
+        console.log(`[VAS API] Updating record (id: ${record.id}):`, updateData);
+
+        const { data: updatedData, error: updateError } = await supabase
           .from('experiment_logs')
           .update(updateData)
-          .eq('id', record.id);
+          .eq('id', record.id)
+          .select();
           
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('[VAS API] Update error:', updateError);
+          throw updateError;
+        }
+        
+        console.log(`[VAS API] Successfully updated record:`, updatedData);
         
         return NextResponse.json({ 
           status: 'ok', 
           message: 'Updated record',
-          is_completed: phase === '10-15'
+          is_completed: phase === '10-15',
+          record_id: record.id
         });
       } else {
         // 既に完了しているレコードがある場合はエラー
+        console.warn(`[VAS API] Record already completed (id: ${record.id})`);
         return NextResponse.json({ 
           error: 'Experiment already completed. Please start a new experiment with pre phase.' 
         }, { status: 400 });

@@ -141,6 +141,8 @@ export function ExperimentScreen({ userId, condition, onComplete }: ExperimentSc
 
   const handleVasSubmit = async (score: number) => {
     try {
+      console.log(`[ExperimentScreen] Submitting VAS: phase=${vasPhase}, score=${score}`);
+      
       const response = await fetch('/api/vas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -153,6 +155,11 @@ export function ExperimentScreen({ userId, condition, onComplete }: ExperimentSc
       });
       
       const data = await response.json();
+      console.log(`[ExperimentScreen] VAS API response:`, data);
+      
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
       
       // 最後のフェーズ（10-15）のVAS送信時は、既に完了扱いになっている
       if (vasPhase === '10-15' && data.is_completed) {
@@ -160,7 +167,9 @@ export function ExperimentScreen({ userId, condition, onComplete }: ExperimentSc
         isExperimentCompletedRef.current = true;
       }
     } catch (e) {
-      console.error('VAS Submit error', e);
+      console.error('[ExperimentScreen] VAS Submit error:', e);
+      alert(`VAS送信エラー: ${e instanceof Error ? e.message : 'Unknown error'}\n\nコンソールを確認してください。`);
+      return; // エラー時は処理を中断
     }
 
     setShowVas(false);
