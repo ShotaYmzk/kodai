@@ -71,17 +71,18 @@ function loadCsv(filename: string, textCol: string = 'text'): Tweet[] {
       skip_empty_lines: true,
       relax_column_count: true,
       bom: true, // Handle BOM if present
-    });
+    }) as Record<string, string>[];
 
     console.log(`[Data Loader] Parsed ${records.length} records from ${filename}`);
     
     if (records.length > 0) {
-      const firstRecordKeys = Object.keys(records[0]);
+      const firstRecord = records[0];
+      const firstRecordKeys = Object.keys(firstRecord);
       console.log(`[Data Loader] First record keys:`, firstRecordKeys);
       console.log(`[Data Loader] First record sample:`, {
-        [textCol]: records[0][textCol],
-        Sentence: records[0]['Sentence'],
-        text: records[0]['text']
+        [textCol]: firstRecord[textCol],
+        Sentence: firstRecord['Sentence'],
+        text: firstRecord['text']
       });
     }
 
@@ -89,7 +90,7 @@ function loadCsv(filename: string, textCol: string = 'text'): Tweet[] {
     let missingCount = 0;
     
     const tweets = records
-      .map((record: Record<string, string>) => {
+      .map((record) => {
         // Try to find the text column
         let text = record[textCol];
         if (!text && record['Sentence']) {
@@ -108,16 +109,17 @@ function loadCsv(filename: string, textCol: string = 'text'): Tweet[] {
         }
 
         foundCount++;
-        return {
+        const tweet: Tweet = {
           text: cleanText(text),
           source: filename,
           stress: 0,
         };
+        return tweet;
       })
-      .filter((t: Tweet | null): t is Tweet => t !== null);
+      .filter((t): t is Tweet => t !== null);
     
     console.log(`[Data Loader] Successfully loaded ${tweets.length} tweets from ${filename} (found: ${foundCount}, missing: ${missingCount})`);
-    if (tweets.length > 0) {
+    if (tweets.length > 0 && tweets[0]) {
       console.log(`[Data Loader] Sample tweet: "${tweets[0].text.substring(0, 50)}..."`);
     }
     return tweets;

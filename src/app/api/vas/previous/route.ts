@@ -48,7 +48,8 @@ export async function GET(request: Request) {
     if (error) throw error;
 
     if (data && data.length > 0) {
-        const score = data[0][previousColumn];
+        const record = data[0] as unknown as Record<string, unknown>;
+        const score = record[previousColumn];
         return NextResponse.json({ previous_score: score });
     }
   } catch (e) {
