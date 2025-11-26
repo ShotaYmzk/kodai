@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     // Find existing record
     const { data: existing, error: queryError } = await supabase
       .from('experiment_logs')
-      .select('id, status')
+      .select('id, status, vas_pre, vas_warmup, vas_phase1, vas_phase2, vas_phase3, last_activity_at')
       .eq('participant_name', user_id)
       .eq('filter_condition', condition)
       .order('id', { ascending: false })
@@ -44,21 +44,53 @@ export async function POST(request: Request) {
 
     if (queryError) throw queryError;
 
+    // preフェーズのVAS送信時は、新しい実験セッションの開始とみなす
+    if (phase === 'pre') {
+      // 既存の未完了レコードがある場合は削除して新しいレコードを作成
+      if (existing && existing.length > 0) {
+        const record = existing[0];
+        
+        // 未完了のレコードがある場合は削除
+        if (record.status !== 'completed') {
+          console.log(`[VAS API] Deleting incomplete record (id: ${record.id}) to start new session`);
+          await supabase
+            .from('experiment_logs')
+            .delete()
+            .eq('id', record.id);
+        }
+      }
+      
+      // 新しいレコードを作成
+      const { error: insertError } = await supabase
+        .from('experiment_logs')
+        .insert({
+          participant_name: user_id,
+          filter_condition: condition,
+          [columnName]: vas_score,
+          status: 'in_progress',
+          started_at: new Date().toISOString(),
+          last_activity_at: new Date().toISOString()
+        });
+        
+      if (insertError) throw insertError;
+      return NextResponse.json({ status: 'ok', message: 'Created new record' });
+    }
+
+    // pre以外のフェーズでは、既存の未完了レコードを更新
     if (existing && existing.length > 0) {
       const record = existing[0];
       
-      // If not completed, update
+      // 未完了のレコードがある場合は更新
       if (record.status !== 'completed') {
-        const updateData: Record<string, unknown> = { [columnName]: vas_score };
+        const updateData: Record<string, unknown> = { 
+          [columnName]: vas_score,
+          last_activity_at: new Date().toISOString()
+        };
         
         // 最後のフェーズ（10-15）のVAS送信時のみ完了扱いにする
-        // これにより、セッション切れで完了扱いになることを防ぐ
         if (phase === '10-15') {
           updateData['status'] = 'completed';
-          updateData['completed_at'] = new Date().toISOString(); // 完了時刻を記録
-        } else {
-          // 途中のフェーズでは'completed'にしない
-          updateData['last_activity_at'] = new Date().toISOString(); // 最終活動時刻を記録
+          updateData['completed_at'] = new Date().toISOString();
         }
 
         const { error: updateError } = await supabase
@@ -73,26 +105,18 @@ export async function POST(request: Request) {
           message: 'Updated record',
           is_completed: phase === '10-15'
         });
+      } else {
+        // 既に完了しているレコードがある場合はエラー
+        return NextResponse.json({ 
+          error: 'Experiment already completed. Please start a new experiment with pre phase.' 
+        }, { status: 400 });
       }
     }
 
-    // If we are here: either no record exists, or existing is completed.
-    // Only create new if phase is 'pre'
-    if (phase === 'pre') {
-      const { error: insertError } = await supabase
-        .from('experiment_logs')
-        .insert({
-          participant_name: user_id,
-          filter_condition: condition,
-          [columnName]: vas_score,
-          status: 'in_progress'
-        });
-        
-      if (insertError) throw insertError;
-      return NextResponse.json({ status: 'ok', message: 'Created new record' });
-    }
-
-    return NextResponse.json({ error: 'No active experiment found and phase is not pre' }, { status: 400 });
+    // レコードが存在しない場合はエラー（preフェーズから開始していない）
+    return NextResponse.json({ 
+      error: 'No active experiment found. Please start with pre phase.' 
+    }, { status: 400 });
 
   } catch (error: unknown) {
     console.error('VAS API Error:', error);
@@ -100,3 +124,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
+
