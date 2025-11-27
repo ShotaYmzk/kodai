@@ -257,39 +257,47 @@ export function ExperimentScreen({ userId, condition, onComplete }: ExperimentSc
   const label = currentPhaseId ? PHASE_LABELS[currentPhaseId] : '準備中...';
 
   return (
-    <div className="min-h-screen bg-[#f0f2f5]">
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-sm border-b border-gray-200 p-4 flex justify-between items-center shadow-sm">
-        <div className="font-bold text-lg">模擬実験</div>
-        <div className="font-mono font-bold text-xl text-[#1d9bf0]">
+    <div className="min-h-screen bg-black">
+      {/* Twitter-like Header */}
+      <div className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-[#2f3336] px-4 py-3 flex justify-between items-center">
+        <div className="flex items-center">
+          <div className="text-white font-bold text-xl">ホーム</div>
+        </div>
+        <div className="font-mono font-bold text-lg text-[#1d9bf0]">
           {minutes}:{seconds}
         </div>
       </div>
 
-      {/* Timeline or Loading */}
-      <div className="max-w-xl mx-auto bg-white min-h-screen shadow-sm flex flex-col">
-        <div className="text-center py-2 bg-[#e1f5fe] text-[#0277bd] text-sm font-medium flex-shrink-0">
-          {label}
+      {/* Twitter-like Timeline Container */}
+      <div className="max-w-[600px] mx-auto bg-black min-h-screen flex flex-col">
+        {/* Phase Label - Twitter style */}
+        <div className="sticky top-[53px] z-30 bg-black/80 backdrop-blur-md border-b border-[#2f3336] text-center py-3 px-4">
+          <div className="text-[#1d9bf0] text-sm font-semibold">{label}</div>
         </div>
         
         {/* Debug Skip Button */}
         {isDebug && skipCallback && phaseIndex >= 0 && (
-          <div className="text-center py-2 bg-yellow-100 flex-shrink-0">
+          <div className="sticky top-[98px] z-20 text-center py-2 bg-yellow-900/30 border-b border-[#2f3336] flex-shrink-0">
             <Button 
               variant="danger" 
               onClick={skipCurrentPhase}
-              className="text-sm py-1 px-3"
+              className="text-sm py-1 px-3 bg-yellow-600 hover:bg-yellow-700"
             >
               ⏭️ スキップ (デバッグモード)
             </Button>
           </div>
         )}
         
-        <div ref={timelineContainerRef} className="flex-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+        {/* Timeline Content */}
+        <div 
+          ref={timelineContainerRef} 
+          className="flex-1 overflow-y-auto" 
+          style={{ maxHeight: 'calc(100vh - 120px)' }}
+        >
           {loadingPosts ? (
-            <div className="p-10 text-center text-gray-500">読み込み中...</div>
+            <div className="p-10 text-center text-[#71767a]">読み込み中...</div>
           ) : posts.length === 0 ? (
-            <div className="p-10 text-center text-gray-500">
+            <div className="p-10 text-center text-[#71767a]">
               投稿が読み込まれていません。コンソールを確認してください。
             </div>
           ) : (

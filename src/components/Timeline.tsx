@@ -1,26 +1,175 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { User } from 'lucide-react';
+import { 
+  Heart, 
+  MessageCircle, 
+  Repeat2, 
+  Share2, 
+  MoreHorizontal,
+  User
+} from 'lucide-react';
 
 interface TweetProps {
   text: string;
   index: number;
 }
 
-export function Tweet({ text, index }: TweetProps) {
+function Tweet({ text, index }: TweetProps) {
+  const [isLiked, setIsLiked] = useState(false);
+  const [isRetweeted, setIsRetweeted] = useState(false);
+  const [likeCount, setLikeCount] = useState(Math.floor(Math.random() * 1000) + 1);
+  const [retweetCount, setRetweetCount] = useState(Math.floor(Math.random() * 100) + 1);
+  const [replyCount, setReplyCount] = useState(Math.floor(Math.random() * 50) + 1);
+
+  // Generate random user data for each tweet
+  const usernames = ['user', 'twitter_user', 'social_user', 'netizen', 'online_user', 'web_user'];
+  const displayNames = ['User', 'Twitter User', 'Social User', 'Netizen', 'Online User', 'Web User'];
+  const userIndex = index % usernames.length;
+  const username = usernames[userIndex];
+  const displayName = displayNames[userIndex];
+
+  // Generate consistent avatar gradient based on index
+  const avatarColors = [
+    'from-blue-400 to-purple-500',
+    'from-pink-400 to-red-500',
+    'from-green-400 to-teal-500',
+    'from-yellow-400 to-orange-500',
+    'from-indigo-400 to-blue-500',
+    'from-purple-400 to-pink-500',
+  ];
+  const avatarGradient = avatarColors[userIndex % avatarColors.length];
+
+  const handleLike = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsLiked(!isLiked);
+    setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+  };
+
+  const handleRetweet = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsRetweeted(!isRetweeted);
+    setRetweetCount(prev => isRetweeted ? prev - 1 : prev + 1);
+  };
+
+  const handleReply = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // UI only - no actual reply functionality
+  };
+
+  const handleShare = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // UI only - no actual share functionality
+  };
+
   return (
-    <div className="border-b border-[#eff3f4] p-4 flex hover:bg-gray-50 transition-colors" data-post-index={index}>
-      <div className="w-12 h-12 bg-gray-300 rounded-full mr-3 flex-shrink-0 flex items-center justify-center text-white">
-        <User size={24} />
-      </div>
-      <div className="flex-grow">
-        <div className="flex items-center mb-1">
-          <span className="font-bold mr-1 text-[#0f1419]">User</span>
-          <span className="text-[#536471] text-sm">@user</span>
+    <div 
+      className="border-b border-[#2f3336] hover:bg-[#16181c] transition-colors cursor-pointer"
+      data-post-index={index}
+    >
+      <div className="px-4 pt-3 pb-2 flex">
+        {/* Avatar */}
+        <div className="mr-3 flex-shrink-0">
+          <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${avatarGradient} flex items-center justify-center text-white font-bold text-lg`}>
+            {displayName.charAt(0)}
+          </div>
         </div>
-        <div className="text-[#0f1419] whitespace-pre-wrap leading-normal">
-          {text}
+
+        {/* Content */}
+        <div className="flex-grow min-w-0">
+          {/* Header */}
+          <div className="flex items-center mb-1">
+            <span className="font-bold text-white hover:underline mr-1">
+              {displayName}
+            </span>
+            <span className="text-[#71767a] text-[15px] mr-2">
+              @{username}
+            </span>
+            <span className="text-[#71767a] text-[15px]">·</span>
+            <span className="text-[#71767a] text-[15px] ml-2 hover:underline">
+              {Math.floor(Math.random() * 24) + 1}h
+            </span>
+            <div className="ml-auto">
+              <button className="p-2 rounded-full hover:bg-[#1d9bf0]/10 transition-colors group">
+                <MoreHorizontal size={18} className="text-[#71767a] group-hover:text-[#1d9bf0]" />
+              </button>
+            </div>
+          </div>
+
+          {/* Tweet Text */}
+          <div className="text-white text-[15px] leading-[20px] mb-3 whitespace-pre-wrap break-words">
+            {text}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center justify-between max-w-[425px] mt-3 mb-1">
+            {/* Reply */}
+            <button
+              onClick={handleReply}
+              className="flex items-center group -ml-2"
+            >
+              <div className="p-2 rounded-full group-hover:bg-[#1d9bf0]/10 transition-colors">
+                <MessageCircle 
+                  size={18} 
+                  className="text-[#536471] group-hover:text-[#1d9bf0]" 
+                />
+              </div>
+              {replyCount > 0 && (
+                <span className="text-[#71767a] text-[13px] ml-1 group-hover:text-[#1d9bf0]">
+                  {replyCount}
+                </span>
+              )}
+            </button>
+
+            {/* Retweet */}
+            <button
+              onClick={handleRetweet}
+              className="flex items-center group -ml-2"
+            >
+              <div className="p-2 rounded-full group-hover:bg-[#00ba7c]/10 transition-colors">
+                <Repeat2 
+                  size={18} 
+                  className={`text-[#71767a] group-hover:text-[#00ba7c] ${isRetweeted ? 'text-[#00ba7c]' : ''}`}
+                />
+              </div>
+              {retweetCount > 0 && (
+                <span className={`text-[13px] ml-1 group-hover:text-[#00ba7c] ${isRetweeted ? 'text-[#00ba7c]' : 'text-[#71767a]'}`}>
+                  {retweetCount}
+                </span>
+              )}
+            </button>
+
+            {/* Like */}
+            <button
+              onClick={handleLike}
+              className="flex items-center group -ml-2"
+            >
+              <div className="p-2 rounded-full group-hover:bg-[#f91880]/10 transition-colors">
+                <Heart 
+                  size={18} 
+                  className={`transition-colors ${isLiked ? 'fill-[#f91880] text-[#f91880]' : 'text-[#71767a] group-hover:text-[#f91880]'}`}
+                />
+              </div>
+              {likeCount > 0 && (
+                <span className={`text-[13px] ml-1 group-hover:text-[#f91880] ${isLiked ? 'text-[#f91880]' : 'text-[#71767a]'}`}>
+                  {likeCount}
+                </span>
+              )}
+            </button>
+
+            {/* Share */}
+            <button
+              onClick={handleShare}
+              className="flex items-center group -ml-2"
+            >
+              <div className="p-2 rounded-full group-hover:bg-[#1d9bf0]/10 transition-colors">
+                <Share2 
+                  size={18} 
+                  className="text-[#71767a] group-hover:text-[#1d9bf0]" 
+                />
+              </div>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -32,18 +181,17 @@ interface TimelineProps {
   containerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-const POSTS_PER_LOAD = 15; // 一度に表示する投稿数
-const SCROLL_THRESHOLD = 300; // スクロール位置の閾値（px）
+const POSTS_PER_LOAD = 15;
+const SCROLL_THRESHOLD = 300;
 
 export function Timeline({ posts, containerRef: externalContainerRef }: TimelineProps) {
   const [displayedPosts, setDisplayedPosts] = useState<{ text: string; index: number }[]>([]);
-  const [currentPostIndex, setCurrentPostIndex] = useState(0); // 元のposts配列のインデックス
+  const [currentPostIndex, setCurrentPostIndex] = useState(0);
   const [isLooping, setIsLooping] = useState(false);
   const internalContainerRef = useRef<HTMLDivElement>(null);
   const loadingRef = useRef(false);
   const containerRef = externalContainerRef || internalContainerRef;
 
-  // 初期表示と投稿が変更された時の処理
   useEffect(() => {
     if (posts.length === 0) {
       setDisplayedPosts([]);
@@ -52,7 +200,6 @@ export function Timeline({ posts, containerRef: externalContainerRef }: Timeline
       return;
     }
 
-    // 最初のPOSTS_PER_LOAD件を表示
     const initialPosts = posts.slice(0, Math.min(POSTS_PER_LOAD, posts.length)).map((post, i) => ({
       text: post.text,
       index: i
@@ -63,13 +210,11 @@ export function Timeline({ posts, containerRef: externalContainerRef }: Timeline
     loadingRef.current = false;
   }, [posts]);
 
-  // 次の投稿を追加する関数
   const loadMorePosts = useCallback(() => {
     if (loadingRef.current || posts.length === 0) return;
     
     loadingRef.current = true;
 
-    // 次のPOSTS_PER_LOAD件を取得（ループする）
     const nextPosts: { text: string; index: number }[] = [];
     
     for (let i = 0; i < POSTS_PER_LOAD; i++) {
@@ -84,23 +229,19 @@ export function Timeline({ posts, containerRef: externalContainerRef }: Timeline
     const newIndex = (currentPostIndex + POSTS_PER_LOAD) % posts.length;
     setCurrentPostIndex(newIndex);
     
-    // ループしたかどうかをチェック
     if (currentPostIndex + POSTS_PER_LOAD >= posts.length) {
       setIsLooping(true);
     }
 
-    // 少し遅延を入れてから次の読み込みを許可
     setTimeout(() => {
       loadingRef.current = false;
     }, 200);
   }, [currentPostIndex, displayedPosts.length, posts]);
 
-  // スクロール監視（windowまたはコンテナ）
   useEffect(() => {
     const handleScroll = () => {
       const container = containerRef.current;
       if (!container) {
-        // コンテナがない場合はwindowのスクロールを監視
         const scrollTop = window.scrollY || document.documentElement.scrollTop;
         const scrollHeight = document.documentElement.scrollHeight;
         const clientHeight = window.innerHeight;
@@ -115,7 +256,6 @@ export function Timeline({ posts, containerRef: externalContainerRef }: Timeline
       const scrollHeight = container.scrollHeight;
       const clientHeight = container.clientHeight;
 
-      // 下に近づいたら次の投稿を読み込む
       if (scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD) {
         loadMorePosts();
       }
@@ -125,7 +265,6 @@ export function Timeline({ posts, containerRef: externalContainerRef }: Timeline
     if (container) {
       container.addEventListener('scroll', handleScroll, { passive: true });
       
-      // 初期チェック：コンテンツが少ない場合はすぐに追加
       setTimeout(() => {
         if (container.scrollHeight <= container.clientHeight + SCROLL_THRESHOLD) {
           loadMorePosts();
@@ -133,7 +272,6 @@ export function Timeline({ posts, containerRef: externalContainerRef }: Timeline
       }, 100);
     } else {
       window.addEventListener('scroll', handleScroll, { passive: true });
-      // 初期チェック
       setTimeout(() => {
         if (document.documentElement.scrollHeight <= window.innerHeight + SCROLL_THRESHOLD) {
           loadMorePosts();
@@ -156,11 +294,10 @@ export function Timeline({ posts, containerRef: externalContainerRef }: Timeline
         <Tweet key={`${post.index}-${post.text.substring(0, 20)}`} text={post.text} index={post.index} />
       ))}
       {isLooping && displayedPosts.length > 0 && (
-        <div className="text-center py-4 text-gray-500 text-sm border-t border-gray-200">
+        <div className="text-center py-4 text-[#71767a] text-sm border-t border-[#2f3336]">
           🔄 ループ中... 続きを読み込んでいます
         </div>
       )}
     </div>
   );
 }
-
