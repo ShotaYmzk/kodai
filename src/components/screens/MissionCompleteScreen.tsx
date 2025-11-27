@@ -18,9 +18,98 @@ export function MissionCompleteScreen() {
   const [confetti, setConfetti] = useState<Array<{ x: number; y: number; vx: number; vy: number; color: string; rotation: number; rotationSpeed: number }>>([]);
   const [showContent, setShowContent] = useState(false);
   const [countUp, setCountUp] = useState(0);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [gradientStyle, setGradientStyle] = useState<React.CSSProperties>({});
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const confettiCanvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number>();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mousePositionRef = useRef({ x: 0, y: 0 });
+
+  // Mouse tracking for gradient effect
+  useEffect(() => {
+    const updateGradient = (x: number, y: number) => {
+      // Calculate gradient angle based on mouse position
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+      const deltaX = x - centerX;
+      const deltaY = y - centerY;
+      const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI) + 90;
+
+      // Calculate distance from center (0 to 1)
+      const maxDistance = Math.sqrt(centerX * centerX + centerY * centerY);
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY) / maxDistance;
+
+      // Calculate hue based on mouse position (smooth color transitions)
+      const normalizedX = x / window.innerWidth;
+      const normalizedY = y / window.innerHeight;
+      const hue1 = normalizedX * 360;
+      const hue2 = normalizedY * 360;
+      const hue3 = ((normalizedX + normalizedY) / 2) * 360;
+      const hue4 = ((1 - normalizedX + normalizedY) / 2) * 360;
+
+      // Create dynamic gradient styles with multiple layers
+      const gradientStyle: React.CSSProperties = {
+        background: `
+          radial-gradient(circle 800px at ${normalizedX * 100}% ${normalizedY * 100}%, 
+            hsla(${hue1}, 90%, 65%, ${0.4 + distance * 0.1}) 0%, 
+            transparent 60%),
+          radial-gradient(circle 600px at ${(1 - normalizedX) * 100}% ${(1 - normalizedY) * 100}%, 
+            hsla(${hue2}, 85%, 60%, ${0.3 + distance * 0.1}) 0%, 
+            transparent 55%),
+          radial-gradient(circle 1000px at ${normalizedX * 100}% ${(1 - normalizedY) * 100}%, 
+            hsla(${hue3}, 95%, 70%, ${0.25 + distance * 0.1}) 0%, 
+            transparent 50%),
+          linear-gradient(${angle}deg, 
+            hsla(${hue1}, 100%, 55%, ${0.25 + distance * 0.15}) 0%, 
+            hsla(${(hue1 + 60) % 360}, 100%, 60%, ${0.2 + distance * 0.1}) 30%,
+            hsla(${(hue2 + 120) % 360}, 100%, 55%, ${0.2 + distance * 0.1}) 60%,
+            hsla(${(hue4 + 180) % 360}, 100%, 60%, ${0.25 + distance * 0.15}) 100%)
+        `,
+      };
+
+      setGradientStyle(gradientStyle);
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const x = e.clientX;
+      const y = e.clientY;
+      mousePositionRef.current = { x, y };
+      setMousePosition({ x, y });
+      updateGradient(x, y);
+    };
+
+    const handleMouseLeave = () => {
+      // Smoothly return to center position when mouse leaves
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+      mousePositionRef.current = { x: centerX, y: centerY };
+      setMousePosition({ x: centerX, y: centerY });
+      updateGradient(centerX, centerY);
+    };
+
+    const handleResize = () => {
+      // Update gradient on resize using ref to get latest position
+      updateGradient(mousePositionRef.current.x, mousePositionRef.current.y);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseleave', handleMouseLeave);
+    window.addEventListener('resize', handleResize);
+
+    // Initialize with center position
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    mousePositionRef.current = { x: centerX, y: centerY };
+    setMousePosition({ x: centerX, y: centerY });
+    updateGradient(centerX, centerY);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseleave', handleMouseLeave);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   // Initialize particles
   useEffect(() => {
@@ -195,12 +284,54 @@ export function MissionCompleteScreen() {
   }, []);
 
   return (
-    <div className="fixed inset-0 overflow-hidden">
-      {/* Animated gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-        <div className="absolute inset-0 bg-gradient-to-tr from-pink-500/20 via-transparent to-cyan-500/20 animate-pulse" />
-        <div className="absolute inset-0 bg-gradient-to-bl from-yellow-500/10 via-transparent to-purple-500/10" />
-      </div>
+    <div ref={containerRef} className="fixed inset-0 overflow-hidden">
+      {/* Base gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900" />
+      
+      {/* Dynamic mouse-responsive gradient overlay */}
+      <div 
+        className="absolute inset-0 transition-all duration-300 ease-out"
+        style={gradientStyle}
+      />
+      
+      {/* Additional animated gradient layers */}
+      <div className="absolute inset-0 bg-gradient-to-tr from-pink-500/20 via-transparent to-cyan-500/20 animate-pulse" />
+      <div className="absolute inset-0 bg-gradient-to-bl from-yellow-500/10 via-transparent to-purple-500/10" />
+      
+      {/* Mouse-following spotlight effects (multiple layers for depth) */}
+      <div
+        className="absolute w-[600px] h-[600px] rounded-full blur-3xl opacity-20 transition-all duration-500 ease-out pointer-events-none"
+        style={{
+          left: `${mousePosition.x}px`,
+          top: `${mousePosition.y}px`,
+          background: `radial-gradient(circle, 
+            hsla(${(mousePosition.x / window.innerWidth) * 360}, 100%, 65%, 0.8) 0%, 
+            transparent 60%)`,
+          transform: 'translate(-50%, -50%)',
+        }}
+      />
+      <div
+        className="absolute w-[400px] h-[400px] rounded-full blur-2xl opacity-30 transition-all duration-400 ease-out pointer-events-none"
+        style={{
+          left: `${mousePosition.x}px`,
+          top: `${mousePosition.y}px`,
+          background: `radial-gradient(circle, 
+            hsla(${(mousePosition.y / window.innerHeight) * 360}, 100%, 70%, 0.7) 0%, 
+            transparent 50%)`,
+          transform: 'translate(-50%, -50%)',
+        }}
+      />
+      <div
+        className="absolute w-[300px] h-[300px] rounded-full blur-xl opacity-40 transition-all duration-300 ease-out pointer-events-none"
+        style={{
+          left: `${mousePosition.x}px`,
+          top: `${mousePosition.y}px`,
+          background: `radial-gradient(circle, 
+            hsla(${((mousePosition.x + mousePosition.y) / (window.innerWidth + window.innerHeight)) * 360}, 100%, 75%, 0.9) 0%, 
+            transparent 40%)`,
+          transform: 'translate(-50%, -50%)',
+        }}
+      />
 
       {/* Particle canvas */}
       <canvas
